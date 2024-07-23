@@ -88,7 +88,7 @@ void getMimeType(char *file, char *mime)
 
 void *handle_client(void *client_fd)
 {
-    printf("Test\n");
+    printf("2: %d\n", *(int *)client_fd);
     char *request = (char *)malloc(SIZE * sizeof(char));
 
     read(*(int *)client_fd, request, SIZE);
@@ -96,30 +96,60 @@ void *handle_client(void *client_fd)
     char method[10], route[100];
 
     sscanf(request, "%s %s", method, route);
-    printf("%s %s\n", method, route);
+    printf("%s %s", method, route);
 
     free(request);
 
-    char fileURL[100];
-
-    getFileURL(route, fileURL);
-
-    FILE *file = fopen(fileURL, "r");
-
-    if (!file)
+    if (strcmp(method, "GET") != 0)
     {
         const char response[] = "HTTP/1.1 400 Bad Request\r\n\n";
         send(*(int *)client_fd, response, sizeof(response), 0);
     }
     else
     {
-        char resHeader[SIZE];
-        char timeBuf[100];
-        getTimeString(timeBuf);
+        char fileURL[100];
 
-        char mimeType[32];
-        getMimeType(fileURL, mimeType);
+        getFileURL(route, fileURL);
+
+        FILE *file = fopen(fileURL, "r");
+
+        if (!file)
+        {
+            const char response[] = "HTTP/1.1 404 Not Found\r\n\n";
+            send(*(int *)client_fd, response, sizeof(response), 0);
+        }
+        else
+        {
+            char resHeader[SIZE];
+
+            char timeBuf[100];
+            getTimeString(timeBuf);
+
+            char mimeType[32];
+            getMimeType(fileURL, mimeType);
+
+            sprintf(resHeader, "HTTP/1.1 200 OK\r\nDate: %s\r\nContent-Type: %s\r\n\n", timeBuf, mimeType);
+            int headerSize = strlen(resHeader);
+
+            printf(" %s", mimeType);
+
+            fseek(file, 0, SEEK_END);
+            long fsize = ftell(file);
+            fseek(file, 0, SEEK_SET);
+
+            char *resBuffer = (char *)malloc(fsize + headerSize);
+            strcpy(resBuffer, resHeader);
+
+            char *fileBuffer = resBuffer + headerSize;
+            fread(fileBuffer, fsize, 1, file);
+
+            send(*(int *)client_fd, resBuffer, fsize + headerSize, 0);
+            free(resBuffer);
+            fclose(file);
+        }
     }
+    close(*(int *)client_fd);
+    printf("\n");
 }
 
 int main()
@@ -166,7 +196,7 @@ int main()
             continue;
         }
 
-        printf("accept\n");
+        printf("%d\n", *client_fd);
 
         pthread_t thread_id;
         pthread_create(&thread_id, NULL, handle_client, (void *)client_fd);
