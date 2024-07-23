@@ -80,6 +80,10 @@ void getMimeType(char *file, char *mime)
     {
         strcpy(mime, "image/gif");
     }
+    else if (strcmp(dot, ".json") == 0)
+    {
+        strcpy(mime, "application/json");
+    }
     else
     {
         strcpy(mime, "text/html");
@@ -107,6 +111,7 @@ void *handle_client(void *client_fd)
     }
     else
     {
+
         char fileURL[100];
 
         getFileURL(route, fileURL);
@@ -128,7 +133,7 @@ void *handle_client(void *client_fd)
             char mimeType[32];
             getMimeType(fileURL, mimeType);
 
-            sprintf(resHeader, "HTTP/1.1 200 OK\r\nDate: %s\r\nContent-Type: %s\r\n\n", timeBuf, mimeType);
+            sprintf(resHeader, "HTTP/1.1 200 OK\r\nDate: %s\r\nContent-Type: %s\r\n\n", timeBuf, "application/json");
             int headerSize = strlen(resHeader);
 
             printf(" %s", mimeType);
@@ -140,9 +145,14 @@ void *handle_client(void *client_fd)
             char *resBuffer = (char *)malloc(fsize + headerSize);
             strcpy(resBuffer, resHeader);
 
-            char *fileBuffer = resBuffer + headerSize;
-            fread(fileBuffer, fsize, 1, file);
+            // char *fileBuffer = resBuffer + headerSize;
+            strcat(resBuffer, "{\"test\": 5}\n");
 
+            // fread(fileBuffer, fsize, 1, file);
+
+            printf("%s\n", resBuffer);
+
+            // TODO implement json data: change fsize to the length of the json data
             send(*(int *)client_fd, resBuffer, fsize + headerSize, 0);
             free(resBuffer);
             fclose(file);
