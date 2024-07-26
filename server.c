@@ -102,10 +102,9 @@ void *handle_client(void *client_fd)
     sscanf(request, "%s %s", method, route);
     printf("%s %s", method, route);
 
-    free(request);
-
     if (strcmp(method, "GET") != 0)
     {
+        printf("\nrequest: %s\n", request);
         const char response[] = "HTTP/1.1 400 Bad Request\r\n\n";
         send(*(int *)client_fd, response, sizeof(response), 0);
     }
@@ -158,6 +157,7 @@ void *handle_client(void *client_fd)
             fclose(file);
         }
     }
+    free(request);
     close(*(int *)client_fd);
     printf("\n");
 }
