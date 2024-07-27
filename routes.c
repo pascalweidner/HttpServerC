@@ -9,7 +9,7 @@ char *routing(int *client_fd, char *route, char *method, char *request)
     char *response;
     if (route == INDEX)
     {
-        response = todo(client_fd, method, request);
+        response = NULL; // main route;
     }
     else
     {
