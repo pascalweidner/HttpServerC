@@ -11,6 +11,8 @@
 #include <time.h>   // time
 #include <pthread.h>
 
+#include "routes.h"
+
 #define SIZE 1024  // buffer size
 #define PORT 2728  // port number
 #define BACKLOG 10 // number of pending connections queue will hold
@@ -102,61 +104,28 @@ void *handle_client(void *client_fd)
     sscanf(request, "%s %s", method, route);
     printf("%s %s", method, route);
 
-    if (strcmp(method, "GET") != 0)
+    char *response = routing((int *)client_fd, route, method, request);
+    if (response != NULL)
     {
-        printf("\nrequest: %s\n", request);
-        const char response[] = "HTTP/1.1 400 Bad Request\r\n\n";
-        send(*(int *)client_fd, response, sizeof(response), 0);
+        char resHeader[SIZE];
+
+        char timeBuf[100];
+        getTimeString(timeBuf);
+
+        sprintf(resHeader, "HTTP/1.1 200 OK\r\nDate: %s\r\nContent-Type: application/json\r\n\n", timeBuf);
+        int headerSize = strlen(resHeader);
+
+        char *resBuffer = (char *)malloc(strlen(response) + headerSize);
+        strcpy(resBuffer, resHeader);
+
+        strcat(resBuffer, response);
+
+        // TODO implement json data: change fsize to the length of the json data
+        send(*(int *)client_fd, resBuffer, strlen(response) + headerSize, 0);
+        free(resBuffer);
     }
-    else
-    {
 
-        char fileURL[100];
-
-        getFileURL(route, fileURL);
-
-        FILE *file = fopen(fileURL, "r");
-
-        if (!file)
-        {
-            const char response[] = "HTTP/1.1 404 Not Found\r\n\n";
-            send(*(int *)client_fd, response, sizeof(response), 0);
-        }
-        else
-        {
-            char resHeader[SIZE];
-
-            char timeBuf[100];
-            getTimeString(timeBuf);
-
-            char mimeType[32];
-            getMimeType(fileURL, mimeType);
-
-            sprintf(resHeader, "HTTP/1.1 200 OK\r\nDate: %s\r\nContent-Type: %s\r\n\n", timeBuf, "application/json");
-            int headerSize = strlen(resHeader);
-
-            printf(" %s", mimeType);
-
-            fseek(file, 0, SEEK_END);
-            long fsize = ftell(file);
-            fseek(file, 0, SEEK_SET);
-
-            char *resBuffer = (char *)malloc(fsize + headerSize);
-            strcpy(resBuffer, resHeader);
-
-            // char *fileBuffer = resBuffer + headerSize;
-            strcat(resBuffer, "{\"test\": 5}\n");
-
-            // fread(fileBuffer, fsize, 1, file);
-
-            printf("%s\n", resBuffer);
-
-            // TODO implement json data: change fsize to the length of the json data
-            send(*(int *)client_fd, resBuffer, fsize + headerSize, 0);
-            free(resBuffer);
-            fclose(file);
-        }
-    }
+    free(response);
     free(request);
     close(*(int *)client_fd);
     printf("\n");
